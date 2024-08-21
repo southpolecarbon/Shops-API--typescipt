@@ -17,7 +17,7 @@ import {
 import StripeCheckoutForm from "./StripeChekoutForm";
 import { Elements } from "@stripe/react-stripe-js";
 
-const stripePromise = loadStripe(process.env.STRIPE_PUBLIC_KEY || "");
+const stripePromise = loadStripe(process.env.VITE_STRIPE_PUBLIC_KEY || "");
 
 interface CheckoutProps {
   cartId: string;
@@ -36,17 +36,17 @@ interface Address {
 const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
   const [step, setStep] = useState(1);
   const [address, setAddress] = useState<Address>({
-    firstname: "far",
-    lastname: "rash",
-    street: ["carrigan crt"],
-    city: "assen",
-    region: "BC",
-    postcode: "v4g6d9",
-    country_code: "CA",
+    firstname: "",
+    lastname: "",
+    street: [""],
+    city: "",
+    region: "",
+    postcode: "",
+    country_code: "",
     telephone: "",
   });
   const [setBillingAddress] = useMutation(SET_BILLING_ADDRESS);
-  const [email, setEmail] = useState("a@a.com");
+  const [email, setEmail] = useState("");
   const [setGuestEmailOnCart] = useMutation(SET_GUEST_EMAIL_ON_CART);
   const [setPaymentMethodMutation] = useMutation(SET_PAYMENT_METHOD);
   const [placeOrder] = useMutation(PLACE_ORDER);

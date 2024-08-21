@@ -19,8 +19,7 @@ import { Product } from "./types";
 
 const client = new ApolloClient({
   link: new HttpLink({
-    // uri: "http://localhost:3001/graphql",
-    uri: `${process.env.SERVER_GQL_URL}`,
+    uri: `${process.env.VITE_SERVER_GQL_URL}`,
   }),
   cache: new InMemoryCache(),
 });
