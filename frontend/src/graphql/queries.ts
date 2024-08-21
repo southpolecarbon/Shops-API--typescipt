@@ -1,16 +1,16 @@
-import { gql } from '@apollo/client';
+import { gql } from "@apollo/client";
 
 export const GET_PRODUCTS = gql`
   query GetProducts {
-    products(
-      search: ""
-      pageSize: 10
-      currentPage: 1
-    ) {
+    products(search: "", pageSize: 10, currentPage: 1) {
       items {
         id
         name
         sku
+        thumbnail {
+          url
+          label
+        }
         __typename
         price {
           regularPrice {
@@ -107,16 +107,10 @@ export const GET_CART_TOTAL = gql`
   }
 `;
 
-
 export const SET_BILLING_ADDRESS = gql`
-  mutation SetBillingAddress($cartId: String!, $address: BillingAddressInput!) {
+  mutation SetBillingAddress($cartId: String!, $address: CartAddressInput!) {
     setBillingAddressOnCart(
-      input: {
-        cart_id: $cartId
-        billing_address: {
-          address: $address
-        }
-      }
+      input: { cart_id: $cartId, billing_address: { address: $address } }
     ) {
       cart {
         billing_address {
@@ -141,12 +135,12 @@ export const SET_BILLING_ADDRESS = gql`
 `;
 
 export const SET_PAYMENT_METHOD = gql`
-  mutation SetPaymentMethod($cartId: String!, $paymentMethod: PaymentMethodInput!) {
+  mutation SetPaymentMethod(
+    $cartId: String!
+    $paymentMethod: PaymentMethodInput!
+  ) {
     setPaymentMethodOnCart(
-      input: {
-        cart_id: $cartId
-        payment_method: $paymentMethod
-      }
+      input: { cart_id: $cartId, payment_method: $paymentMethod }
     ) {
       cart {
         selected_payment_method {
@@ -159,11 +153,7 @@ export const SET_PAYMENT_METHOD = gql`
 
 export const PLACE_ORDER = gql`
   mutation PlaceOrder($cartId: String!) {
-    placeOrder(
-      input: {
-        cart_id: $cartId
-      }
-    ) {
+    placeOrder(input: { cart_id: $cartId }) {
       order {
         order_number
       }
@@ -177,6 +167,16 @@ export const GET_AVAILABLE_PAYMENT_METHODS = gql`
       available_payment_methods {
         code
         title
+      }
+    }
+  }
+`;
+
+export const SET_GUEST_EMAIL_ON_CART = gql`
+  mutation SetGuestEmailOnCart($cartId: String!, $email: String!) {
+    setGuestEmailOnCart(input: { cart_id: $cartId, email: $email }) {
+      cart {
+        email
       }
     }
   }
