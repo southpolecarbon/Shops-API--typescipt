@@ -18,7 +18,6 @@ export default function StripeCheckoutForm({
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // setIsLoading(true);
     if (!stripe || !elements) {
       // Stripe.js hasn't yet loaded.
       // Make sure to disable form submission until Stripe.js has loaded.
@@ -26,7 +25,6 @@ export default function StripeCheckoutForm({
       return;
     }
 
-    // Trigger form validation and wallet collection
     const { error: submitError } = await elements.submit();
     if (submitError) {
       console.error(submitError);
@@ -37,7 +35,6 @@ export default function StripeCheckoutForm({
     const { error, paymentMethod } = await stripe.createPaymentMethod({
       elements,
     });
-    console.log(paymentMethod);
     setIsLoading(true);
     if (error) {
       console.error(error);
@@ -56,13 +53,8 @@ export default function StripeCheckoutForm({
       NOTE: If you're rendering the Element before creating the payment intent, no need to provide client_secret */}
       <PaymentElement />
       <button disabled={!stripe || !elements} id="submit">
-        <span id="button-text">
-          "Pay now"
-          {/* {isLoading ? <div className="spinner" id="spinner"></div> : "Pay now"} */}
-        </span>
+        <span id="button-text">"Pay now"</span>
       </button>
-      {/* Show any error or success messages */}
-      {/* {message && <div id="payment-message">{message}</div>} */}
     </form>
   );
 }

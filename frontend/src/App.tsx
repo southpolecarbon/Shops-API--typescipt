@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { BrowserRouter as Router, Route, Link, Routes } from "react-router-dom";
+
 import {
   ApolloClient,
   InMemoryCache,
@@ -19,8 +21,7 @@ import { Product } from "./types";
 
 const client = new ApolloClient({
   link: new HttpLink({
-    // uri: "http://localhost:3001/graphql",
-    uri: `${process.env.SERVER_GQL_URL}`,
+    uri: `${process.env.VITE_SERVER_GQL_URL}`,
   }),
   cache: new InMemoryCache(),
 });
@@ -29,13 +30,7 @@ function App() {
   const [cartId, setCartId] = useState<string | null>(null);
   const [createEmptyCart] = useMutation(CREATE_EMPTY_CART);
   const [addToCart] = useMutation(ADD_TO_CART);
-
   const [showCheckout, setShowCheckout] = useState(false);
-
-  const { refetch: refetchCart } = useQuery(GET_CART_TOTAL, {
-    variables: { cartId },
-    skip: !cartId,
-  });
 
   useEffect(() => {
     async function initCart() {
@@ -54,6 +49,11 @@ function App() {
     }
     initCart();
   }, [createEmptyCart]);
+
+  const { refetch: refetchCart } = useQuery(GET_CART_TOTAL, {
+    variables: { cartId },
+    skip: !cartId,
+  });
 
   const handleAddToCart = async (
     product: Product,
@@ -153,7 +153,11 @@ function App() {
 
   return (
     <div>
-      <h1>Magento Store MVP</h1>
+      <h1>
+        <Link to="/" onClick={() => setShowCheckout(false)}>
+          Magento Store MVP
+        </Link>
+      </h1>
       {!showCheckout ? (
         <>
           <ProductList onAddToCart={handleAddToCart} />
@@ -169,7 +173,11 @@ function App() {
 function AppWithProvider() {
   return (
     <ApolloProvider client={client}>
-      <App />
+      <Router>
+        <Routes>
+          <Route path="/" Component={App} />
+        </Routes>
+      </Router>
     </ApolloProvider>
   );
 }

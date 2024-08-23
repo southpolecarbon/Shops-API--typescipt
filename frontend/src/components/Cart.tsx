@@ -1,10 +1,5 @@
-// import { useState, useEffect } from "react";
-import { /*useMutation,*/ useQuery } from "@apollo/client";
-import {
-  // CREATE_EMPTY_CART,
-  // ADD_TO_CART,
-  GET_CART_TOTAL,
-} from "../graphql/queries";
+import { useQuery } from "@apollo/client";
+import { GET_CART_TOTAL } from "../graphql/queries";
 
 interface CartProps {
   cartId: string | null;
@@ -12,14 +7,7 @@ interface CartProps {
 }
 
 const Cart: React.FC<CartProps> = ({ cartId, onCheckout }) => {
-  // const [cartId, setCartId] = useState<string | null>(null);
-  // const [createEmptyCart] = useMutation(CREATE_EMPTY_CART);
-  // const [addToCart] = useMutation(ADD_TO_CART);
-  const {
-    data: cartData,
-    // refetch: refetchCart,
-    error: cartError,
-  } = useQuery(GET_CART_TOTAL, {
+  const { data: cartData, error: cartError } = useQuery(GET_CART_TOTAL, {
     variables: { cartId },
     skip: !cartId,
   });
