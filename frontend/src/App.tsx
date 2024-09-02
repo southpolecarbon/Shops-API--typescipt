@@ -8,6 +8,7 @@ import {
   useMutation,
   useQuery,
   HttpLink,
+  ApolloLink,
 } from "@apollo/client";
 import ProductList from "./components/ProductList";
 import Cart from "./components/Cart";
@@ -19,10 +20,20 @@ import {
 } from "./graphql/queries";
 import { Product } from "./types";
 
+const authLink = new ApolloLink((operation, forward) => {
+  const token = localStorage.getItem("authToken");
+  operation.setContext({
+    headers: {
+      authorization: token ? `Bearer ${token}` : "",
+    },
+  });
+  return forward(operation);
+});
+
+const httpLink = new HttpLink({ uri: process.env.VITE_SERVER_GQL_URL });
+
 const client = new ApolloClient({
-  link: new HttpLink({
-    uri: `${process.env.VITE_SERVER_GQL_URL}`,
-  }),
+  link: authLink.concat(httpLink),
   cache: new InMemoryCache(),
 });
 
