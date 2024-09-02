@@ -16,12 +16,16 @@ app.post("/graphql", async (req, res) => {
 
     const isGetProductsQuery = req.body.operationName === "GetProducts";
 
+    // Extract the Authorization header from the incoming request
+    const authHeader = req.headers.authorization;
+
     // NOTE: the required header's name is different for GetProductsQuery vs the rest of queries/mutations
     const headers = {
       "Content-Type": "application/json",
       ...(isGetProductsQuery
         ? { "Magento-Store-View-Code": process.env.STORE_VIEW_CODE }
         : { Store: process.env.STORE_VIEW_CODE }),
+      ...(authHeader && { Authorization: authHeader }), // Include the Authorization header if it exists
     };
 
     const response = await axios.post(process.env.GQL_API_URL, req.body, {
