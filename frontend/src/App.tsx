@@ -1,4 +1,11 @@
-import { useState, useEffect } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  lazy,
+  useMemo,
+  Suspense,
+} from "react";
 import { BrowserRouter as Router, Route, Link, Routes } from "react-router-dom";
 
 import {
@@ -10,15 +17,16 @@ import {
   HttpLink,
   ApolloLink,
 } from "@apollo/client";
-import ProductList from "./components/ProductList";
-import Cart from "./components/Cart";
-import Checkout from "./components/Checkout";
 import {
   CREATE_EMPTY_CART,
   ADD_TO_CART,
   GET_CART_TOTAL,
 } from "./graphql/queries";
 import { Product } from "./types";
+
+const ProductList = lazy(() => import("./components/ProductList"));
+const Cart = lazy(() => import("./components/Cart"));
+const Checkout = lazy(() => import("./components/Checkout"));
 
 const authLink = new ApolloLink((operation, forward) => {
   const token = localStorage.getItem("authToken");
@@ -92,82 +100,141 @@ function App() {
     setCartId(newCartId);
   }, []);
 
-    try {
-      let sku = product.sku;
-      let parentSku = null;
-      let selectedOptionIds: string[] = [];
-
-      if (product.__typename === "ConfigurableProduct" && selectedOptions) {
-        console.log(
-          "Configurable product detected. Variants:",
-          JSON.stringify(product.variants, null, 2)
-        );
-
-        const variant = product.variants?.find((v) =>
-          v.attributes.every(
-            (attr) => selectedOptions[attr.code] === attr.value_index.toString()
-          )
-        );
-
-        if (variant) {
-          console.log(
-            "Matching variant found:",
-            JSON.stringify(variant, null, 2)
-          );
-          sku = variant.product.sku;
-          parentSku = product.sku;
-          selectedOptionIds = Object.entries(selectedOptions).map(
-            ([code, value_index]) => {
-              const option = product.configurable_options?.find(
-                (o) => o.attribute_code === code
-              );
-              return `${option?.attribute_code}_${value_index}`;
-            }
-          );
-        } else {
-          console.error("Unable to find matching variant for selected options");
-          console.log(
-            "Available variants:",
-            JSON.stringify(product.variants, null, 2)
-          );
-          console.log(
-            "Selected options:",
-            JSON.stringify(selectedOptions, null, 2)
-          );
-          throw new Error(
-            "Unable to find matching variant for selected options"
-          );
-        }
+  const handleAddToCart = useCallback(
+    async (
+      product: Product,
+      quantity: number,
+      selectedOptions?: Record<string, string>
+    ) => {
+      setErrorMessage(null);
+      if (!cartId) {
+        console.error("No cart ID available");
+        return;
       }
 
       console.log(
-        `Final cart item data:`,
-        JSON.stringify(
-          {
+        `Attempting to add to cart - Product:`,
+        JSON.stringify(product, null, 2)
+      );
+      console.log(`Quantity:`, quantity);
+      console.log(
+        `Selected Options:`,
+        JSON.stringify(selectedOptions, null, 2)
+      );
+      console.log(`CartID:`, cartId);
+
+      try {
+        let sku = product.sku;
+        let parentSku = null;
+        let selectedOptionIds: string[] = [];
+
+        if (product.__typename === "ConfigurableProduct" && selectedOptions) {
+          console.log(
+            "Configurable product detected. Variants:",
+            JSON.stringify(product.variants, null, 2)
+          );
+
+          const variant = product.variants?.find((v) =>
+            v.attributes.every(
+              (attr) =>
+                selectedOptions[attr.code] === attr.value_index.toString()
+            )
+          );
+
+          if (variant) {
+            console.log(
+              "Matching variant found:",
+              JSON.stringify(variant, null, 2)
+            );
+            sku = variant.product.sku;
+            parentSku = product.sku;
+            selectedOptionIds = Object.entries(selectedOptions).map(
+              ([code, value_index]) => {
+                const option = product.configurable_options?.find(
+                  (o) => o.attribute_code === code
+                );
+                return `${option?.attribute_code}_${value_index}`;
+              }
+            );
+          } else {
+            console.error(
+              "Unable to find matching variant for selected options"
+            );
+            console.log(
+              "Available variants:",
+              JSON.stringify(product.variants, null, 2)
+            );
+            console.log(
+              "Selected options:",
+              JSON.stringify(selectedOptions, null, 2)
+            );
+            throw new Error(
+              "Unable to find matching variant for selected options"
+            );
+          }
+        }
+
+        console.log(
+          `Final cart item data:`,
+          JSON.stringify(
+            {
+              sku,
+              quantity,
+              parentSku,
+              selectedOptions: selectedOptionIds,
+            },
+            null,
+            2
+          )
+        );
+
+        const result = await addToCart({
+          variables: {
+            cartId,
             sku,
             quantity,
             parentSku,
             selectedOptions: selectedOptionIds,
           },
-          null,
-          2
-        )
-      );
+        });
 
-      const result = await addToCart({
-        variables: {
-          cartId,
-          sku,
-          quantity,
-          parentSku,
-          selectedOptions: selectedOptionIds,
-        },
-      });
-      console.log("Add to cart result:", JSON.stringify(result, null, 2));
-      refetchCart();
-    } catch (error: unknown) {
-      console.error("Error adding to cart:", error);
-    }
+        console.log("Add to cart result:", JSON.stringify(result, null, 2));
+        if (result.data?.addProductsToCart?.user_errors?.length > 0) {
+          console.error(
+            "Error adding to cart:",
+            result.data?.addProductsToCart?.user_errors
+          );
+          const userError = result.data.addProductsToCart.user_errors[0];
+          setErrorMessage(userError.message);
+        } else {
+          refetchCart();
+        }
+      } catch (error: unknown) {
+        console.error("Error adding to cart:", error);
+        setErrorMessage("An unexpected error occurred. Please try again.");
+      }
+    },
+    [addToCart, cartId, refetchCart]
+  );
+
+  const debouncedSetSearchQuery = useMemo(
+    () => debounce((query: string) => setDebouncedSearchQuery(query), 1000),
+    []
+  );
+
+  useEffect(() => {
+    debouncedSetSearchQuery(searchQuery);
+  }, [searchQuery, debouncedSetSearchQuery]);
+
+  useEffect(() => {
+    initCart();
+  }, [initCart]);
+
+  const handleSearchChange: React.ChangeEventHandler<HTMLInputElement> = (
+    event
+  ) => {
+    const query = event.target.value;
+    setSearchQuery(query);
   };
 
   const productListProps = useMemo(

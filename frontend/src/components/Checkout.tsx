@@ -37,8 +37,11 @@ interface Address {
   telephone: string;
 }
 
-const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
+const Checkout: React.FC<CheckoutProps> = ({ cartId, onUpdateCartId }) => {
   const [step, setStep] = useState(1);
+
+  const [selectedPaymentType, setSelectedPaymentType] = useState("");
+
   const [address, setAddress] = useState<Address>({
     firstname: "",
     lastname: "",
@@ -123,9 +126,11 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
     setSelectedPaymentType(e.target.value);
   };
 
-  const handleSubmitEmail = async () => {
+  const handleSubmitEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
     if (!email) {
-      alert("Please enter your email.");
+      setErrorMessage("Email is required.");
       return;
     }
     try {
@@ -180,24 +185,85 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
     }
   };
 
+  const handlePlaceOrder = async () => {
+    setErrorMessage(null);
+    try {
+      // Ref: https://developer.adobe.com/commerce/webapi/graphql/schema/cart/mutations/place-order/
+      const result = await placeOrder({ variables: { cartId } });
+      console.log(
+        "Order placed:",
+        JSON.stringify(result.data.placeOrder.order, null, 2)
+      );
+      setIsLoading(false);
+      setSuccessMessage("Order placed successfully!");
+    } catch (error: unknown) {
+      setErrorMessage("Failed to place order. Please try again.");
+      console.error("Error placing order:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePaymentMethodReceived = async (paymentMethod: PaymentMethod) => {
+    setErrorMessage(null);
+    setStep(6);
+    setIsLoading(true);
+    try {
+      let paymentMethodVariables;
+
+      if (selectedPaymentType === "stripe_payments") {
+        paymentMethodVariables = {
+          code: "stripe_payments",
+          stripe_payments: {
+            payment_method: paymentMethod.id,
+            payment_element: true,
+            save_payment_method: true,
+          },
+        };
+      } else if (selectedPaymentType === "purchaseorder") {
+        paymentMethodVariables = {
+          code: selectedPaymentType,
+        };
+      } else {
+        setErrorMessage("Invalid payment method selected. Please try again.");
+        setIsLoading(false);
+        return;
+      }
+
+      // Ref: https://developer.adobe.com/commerce/webapi/graphql/schema/cart/mutations/set-payment-method/
+      await setPaymentMethodMutation({
+        variables: {
+          cartId,
+          paymentMethod: paymentMethodVariables,
+        },
+      });
+
+      // Call handlePlaceOrder after setting the payment method
+      await handlePlaceOrder();
+    } catch (error) {
+      setErrorMessage("Failed to set payment method. Please try again.");
+      console.error(error);
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div>
       {errorMessage && <div className="error-message">{errorMessage}</div>}
-      {successMessage && (
-        <div className="success-message">{successMessage}</div>
-      )}
-
       {step === 1 && (
         <div>
           <h2>Checkout</h2>
           <h3>Enter Your Email</h3>
-          <input
-            type="email"
-            value={email}
-            onChange={handleEmailChange}
-            placeholder="Email"
-          />
-          <button onClick={handleSubmitEmail}>Next</button>
+          <form onSubmit={handleSubmitEmail}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              required
+            />
+            <button onClick={handleSubmitEmail}>Next</button>
+          </form>
         </div>
       )}
       {step === 2 && (

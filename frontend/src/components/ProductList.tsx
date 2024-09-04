@@ -29,46 +29,55 @@ const ProductList: React.FC<ProductListProps> = ({
     getProducts({ variables: { search: searchQuery } });
   }, [searchQuery, getProducts]);
 
-  const handleQuantityChange = (sku: string, value: string) => {
+  const handleQuantityChange = useCallback((sku: string, value: string) => {
     const quantity = parseInt(value, 10) || 0;
     setQuantities((prev) => ({ ...prev, [sku]: quantity }));
-  };
+  }, []);
 
-  const handleOptionChange = (
-    productSku: string,
-    attributeCode: string,
-    valueIndex: string
-  ) => {
-    setSelectedOptions((prev) => ({
-      ...prev,
-      [productSku]: {
-        ...prev[productSku],
-        [attributeCode]: valueIndex,
-      },
-    }));
-    setErrors((prev) => ({ ...prev, [productSku]: "" }));
-  };
+  const handleOptionChange = useCallback(
+    (productSku: string, attributeCode: string, valueIndex: string) => {
+      setSelectedOptions((prev) => ({
+        ...prev,
+        [productSku]: {
+          ...prev[productSku],
+          [attributeCode]: valueIndex,
+        },
+      }));
+      setErrors((prev) => ({ ...prev, [productSku]: "" }));
+    },
+    []
+  );
 
-  const validateOptions = (product: Product): string => {
-    if (
-      product.__typename !== "ConfigurableProduct" ||
-      !product.configurable_options
-    ) {
+  const validateOptions = useCallback(
+    (product: Product): string => {
+      if (
+        product.__typename !== "ConfigurableProduct" ||
+        !product.configurable_options
+      ) {
+        return "";
+      }
+
+      const missingOptions = product.configurable_options
+        .filter(
+          (option) => !selectedOptions[product.sku]?.[option.attribute_code]
+        )
+        .map((option) => option.label);
+
+      if (missingOptions.length > 0) {
+        return `Please select: ${missingOptions.join(", ")}`;
+      }
+
       return "";
+    },
+    [selectedOptions]
+  );
+
+  const products = useMemo(() => {
+    if (Array.isArray(data?.products?.items)) {
+      return data.products.items;
     }
-
-    const missingOptions = product.configurable_options
-      .filter(
-        (option) => !selectedOptions[product.sku]?.[option.attribute_code]
-      )
-      .map((option) => option.label);
-
-    if (missingOptions.length > 0) {
-      return `Please select: ${missingOptions.join(", ")}`;
-    }
-
-    return "";
-  };
+    return [];
+  }, [data]);
 
   if (loading) return <p>Loading......</p>;
   if (data?.error) return <p>Error loading products: {data.error.message}</p>;
