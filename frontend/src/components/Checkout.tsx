@@ -12,6 +12,7 @@ import {
   PLACE_ORDER,
   GET_AVAILABLE_PAYMENT_METHODS,
   SET_GUEST_EMAIL_ON_CART,
+  SET_CERTIFICATE_NAME,
 } from "../graphql/queries";
 
 import StripeCheckoutForm from "./StripeChekoutForm";
@@ -48,12 +49,15 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
     telephone: "",
   });
   const [setBillingAddress] = useMutation(SET_BILLING_ADDRESS);
-  const [email, setEmail] = useState("");
   const [setGuestEmailOnCart] = useMutation(SET_GUEST_EMAIL_ON_CART);
   const [setPaymentMethodMutation] = useMutation(SET_PAYMENT_METHOD);
   const [placeOrder] = useMutation(PLACE_ORDER);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [email, setEmail] = useState("f.rashidi@southpole.com");
+  const [certName, setCertName] = useState("");
+  const [certNotes, setCertNotes] = useState("");
+  const [setCertificateName] = useMutation(SET_CERTIFICATE_NAME);
   const [isLoading, setIsLoading] = useState(false);
 
   const handlePlaceOrder = async () => {
@@ -73,29 +77,23 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
     }
   };
 
-  const handlePaymentMethodReceived = async (paymentMethod: PaymentMethod) => {
+  const handleSubmitCertificateForm = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
+    e.preventDefault();
     try {
-      const result = await setPaymentMethodMutation({
+      const result = await setCertificateName({
         variables: {
           cartId,
-          paymentMethod: {
-            code: "stripe_payments",
-            stripe_payments: {
-              payment_method: paymentMethod.id,
-              payment_element: true,
-              save_payment_method: true,
-            },
-          },
+          certificateName: certName,
+          specialInstructions: certNotes,
         },
       });
       console.log(result);
-      // Call handlePlaceOrder after setting the payment method
-      await handlePlaceOrder();
-      // Handle success (e.g., navigate to confirmation page)
+      console.log("Certificate details submitted successfully");
+      setShowModal(true);
     } catch (error) {
-      setErrorMessage("Failed to set payment method. Please try again.");
-      console.error(error);
-      setIsLoading(false);
+      console.error("Error submitting certificate details:", error);
     }
   };
   // const {
@@ -239,43 +237,36 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
         />
       )}
 
-
+      {step === 3 && (
+        <div className="certificate-section">
+          <h3>Certificate Details</h3>
+          <form
+            className="certificate-form"
+            onSubmit={handleSubmitCertificateForm}
           >
-            <option value="US">United States</option>
-            <option value="CA">Canada</option>
-            <option value="GB">United Kingdom</option>
-            {/* Add more country options as needed */}
-          </select>
-          <button onClick={handleSubmitAddress}>Next</button>
+            <label>
+              Name:
+              <input
+                type="text"
+                value={certName}
+                onChange={(e) => setCertName(e.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Notes:
+              <textarea
+                value={certNotes}
+                onChange={(e) => setCertNotes(e.target.value)}
+                required
+              />
+            </label>
+            <button type="submit">Submit</button>
+          </form>
+          <img src="/certificate-explainer.png" alt="Certificate Explainer" />
         </div>
       )}
-      <div>
-        {step === 3 && (
-          <div className="checkout">
-            {isLoading ? (
-              <div>Loading...</div>
-            ) : (
-              !successMessage && (
-                <div>
-                  <h3>Complete your purchase</h3>
-                  {/* Stripe recommend using an Stripe Element (https://docs.stripe.com/stripe-js/react) to render a payment form.*/}
-                  <Elements options={options} stripe={stripePromise}>
-                    <StripeCheckoutForm
-                      onPaymentMethodReceived={handlePaymentMethodReceived}
-                      setIsLoading={setIsLoading}
-                    />
-                    {isLoading && <div>Loading...</div>}
-                  </Elements>
-                </div>
-              )
-            )}
-          </div>
-        )}
-        {/* {orderPlaced && (
-          <div>Payment successful! Your order has been placed.</div>
-        )} */}
-      </div>
-      {/* {step === 4 && (
+      {step === 4 && (
         <div>
           <h3>Payment Method</h3>
           {paymentMethodsLoading && <p>Loading payment methods...</p>}

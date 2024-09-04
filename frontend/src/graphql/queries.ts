@@ -181,3 +181,17 @@ export const SET_GUEST_EMAIL_ON_CART = gql`
     }
   }
 `;
+
+export const SET_CERTIFICATE_NAME = gql`
+  mutation SetCertificateName(
+    $cartId: String!
+    $certificateName: String!
+    $specialInstructions: String!
+  ) {
+    setCertificateName(
+      cartId: $cartId
+      certificateName: $certificateName
+      specialInstructions: $specialInstructions
+    )
+  }
+`;
