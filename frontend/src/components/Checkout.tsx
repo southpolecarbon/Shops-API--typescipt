@@ -24,6 +24,7 @@ const stripePromise = loadStripe(process.env.VITE_STRIPE_PUBLIC_KEY || "");
 
 interface CheckoutProps {
   cartId: string;
+  onUpdateCartId: (newCartId: string) => void;
 }
 interface Address {
   firstname: string;
@@ -59,6 +60,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
   const [certNotes, setCertNotes] = useState("");
   const [setCertificateName] = useMutation(SET_CERTIFICATE_NAME);
   const [isLoading, setIsLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   const paymentOptions: StripeElementsOptionsMode = {
     mode: "payment",
@@ -95,6 +97,16 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
     } catch (error) {
       console.error("Error submitting certificate details:", error);
     }
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+  };
+
+  const handleAccountModalSuccess = () => {
+    setShowModal(false);
+
+    setStep(4);
   };
 
   const handlePaymentStep = async () => {

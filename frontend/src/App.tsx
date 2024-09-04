@@ -83,13 +83,9 @@ function App() {
       return;
     }
 
-    console.log(
-      `Attempting to add to cart - Product:`,
-      JSON.stringify(product, null, 2)
-    );
-    console.log(`Quantity:`, quantity);
-    console.log(`Selected Options:`, JSON.stringify(selectedOptions, null, 2));
-    console.log(`CartID:`, cartId);
+  const handleUpdateCartId = useCallback((newCartId: string) => {
+    setCartId(newCartId);
+  }, []);
 
     try {
       let sku = product.sku;

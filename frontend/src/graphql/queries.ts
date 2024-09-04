@@ -182,6 +182,32 @@ export const SET_GUEST_EMAIL_ON_CART = gql`
   }
 `;
 
+export const CREATE_CUSTOMER = gql`
+  mutation createCustomer($input: CustomerInput!) {
+    createCustomer(input: $input) {
+      customer {
+        id
+        email
+      }
+    }
+  }
+`;
+
+export const GENERATE_CUSTOMER_TOKEN = gql`
+  mutation generateCustomerToken($email: String!, $password: String!) {
+    generateCustomerToken(email: $email, password: $password) {
+      token
+    }
+  }
+`;
+
+export const ASSIGN_CUSTOMER_TO_GUEST_CART = gql`
+  mutation AssignCustomerToGuestCart($cart_id: String!) {
+    assignCustomerToGuestCart(cart_id: $cart_id) {
+      id
+    }
+  }
+`;
 export const SET_CERTIFICATE_NAME = gql`
   mutation SetCertificateName(
     $cartId: String!
