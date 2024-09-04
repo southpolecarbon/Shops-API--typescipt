@@ -1,5 +1,5 @@
-import React, { /*useEffect,*/ useState } from "react";
-import { useMutation /*useQuery*/ } from "@apollo/client";
+import React, { useState } from "react";
+import { useMutation, useQuery } from "@apollo/client";
 import {
   loadStripe,
   PaymentMethod,
@@ -60,22 +60,22 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
   const [setCertificateName] = useMutation(SET_CERTIFICATE_NAME);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handlePlaceOrder = async () => {
-    try {
-      const result = await placeOrder({ variables: { cartId } });
-      console.log(
-        "Order placed:",
-        JSON.stringify(result.data.placeOrder.order, null, 2)
-      );
-      setSuccessMessage("Order placed successfully!");
-    } catch (error: unknown) {
-      debugger;
-      setErrorMessage("Failed to place order. Please try again.");
-      console.error("Error placing order:", error);
-    } finally {
-      setIsLoading(false);
-    }
+  const paymentOptions: StripeElementsOptionsMode = {
+    mode: "payment",
+    amount: 100, //If not hard coded the PaymentElemnt is not loaded properly
+    currency: "eur", //If not hard coded the PaymentElemnt is not loaded properly
+    //NOTE: calling stripe.createPaymentMethod() with a PaymentElement only worked if payment creation method was set to manual
+    paymentMethodCreation: "manual",
   };
+
+  const {
+    data: paymentMethodsData,
+    loading: paymentMethodsLoading,
+    error: paymentMethodsError,
+  } = useQuery(GET_AVAILABLE_PAYMENT_METHODS, {
+    variables: { cartId },
+    skip: step < 4,
+  });
 
   const handleSubmitCertificateForm = async (
     e: React.FormEvent<HTMLFormElement>
@@ -96,49 +96,19 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
       console.error("Error submitting certificate details:", error);
     }
   };
-  // const {
-  //   data: paymentMethodsData,
-  //   // loading: paymentMethodsLoading,
-  //   error: paymentMethodsError,
-  // } = useQuery(GET_AVAILABLE_PAYMENT_METHODS, {
-  //   variables: { cartId },
-  //   skip: step < 2,
-  // });
-  //   async function createPaymentIntent(items: { id: string }) {
-  //     try {
-  //       const response = await fetch(
-  //         "http://localhost:3001/create-payment-intent",
-  //         {
-  //           method: "POST",
-  //           headers: { "Content-Type": "application/json" },
-  //           body: JSON.stringify({ items }),
-  //         }
-  //       );
-  //
-  //       if (!response.ok) {
-  //         throw new Error("Network response was not ok");
-  //       }
-  //
-  //       const data = await response.json();
-  //       // Handle the data
-  //       return data;
-  //     } catch (error) {
-  //       debugger;
-  //       // Handle the error
-  //       console.error("There was a problem with the fetch operation:", error);
-  //     }
-  //   }
 
-  const options: StripeElementsOptionsMode = {
-    mode: "payment",
-    amount: 100, //If not hard coded the PaymentElemnt is not loaded properly
-    currency: "eur", //If not hard coded the PaymentElemnt is not loaded properly
-    //NOTE: calling stripe.createPaymentMethod() with a PaymentElement only worked if payment creation method was set to manual
-    paymentMethodCreation: "manual",
+  const handlePaymentStep = async () => {
+    setErrorMessage(null);
+    if (selectedPaymentType === "purchaseorder") {
+      await handlePaymentMethodReceived({ id: "" } as PaymentMethod);
+    } else {
+      setStep(5);
+    }
   };
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
+  const handlePaymentTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    //available values: "stripe_payments" and "purchaseorder"
+    setSelectedPaymentType(e.target.value);
   };
 
   const handleSubmitEmail = async () => {
@@ -274,32 +244,55 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
             <p>Error loading payment methods: {paymentMethodsError.message}</p>
           )}
           {paymentMethodsData && (
-            <select
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              value={paymentMethod}
-            >
-              <option value="">Select Payment Method</option>
+            <div>
+              <select onChange={handlePaymentTypeChange}>
+                <option value="">Select Payment Method</option>
 
-              {paymentMethodsData.cart.available_payment_methods.map(
-                (method: { code: string; title: string }) => (
-                  <option key={method.code} value={method.code}>
-                    {method.title}
-                  </option>
-                )
-              )}
-            </select>
+                {paymentMethodsData.cart.available_payment_methods.map(
+                  (method: { code: string; title: string }) => (
+                    <option key={method.code} value={method.code}>
+                      {method.title}
+                    </option>
+                  )
+                )}
+              </select>
+              <button onClick={handlePaymentStep}>Next</button>
+            </div>
           )}
-          <div id="payment-element"></div>
-          <button onClick={handleSetPaymentMethod}>Next</button>
-        </div>
-      )} */}
-      {/* {step === 5 && (
-        <div>
-          <h3>Place Order</h3>
-          <button onClick={handlePlaceOrder}>Place Order</button>
         </div>
       )}
-      {step === 5 && <div>Order placed successfully!</div>} */}
+      {step === 5 && selectedPaymentType === "stripe_payments" && (
+        <div className="checkout">
+          {isLoading ? (
+            <div>Loading...</div>
+          ) : (
+            !successMessage && (
+              <div>
+                <h3>Complete your purchase</h3>
+                {/* Stripe recommend using an Stripe Element (https://docs.stripe.com/stripe-js/react) to render a payment form.*/}
+                <Elements options={paymentOptions} stripe={stripePromise}>
+                  <StripeCheckoutForm
+                    onPaymentMethodReceived={handlePaymentMethodReceived}
+                    setIsLoading={setIsLoading}
+                  />
+                  {isLoading && <div>Loading...</div>}
+                </Elements>
+              </div>
+            )
+          )}
+        </div>
+      )}
+      {step === 6 && (
+        <div>
+          {isLoading ? (
+            <div>Loading...</div>
+          ) : (
+            successMessage && (
+              <div>Your order has been placed successfully!</div>
+            )
+          )}
+        </div>
+      )}
     </div>
   );
 };

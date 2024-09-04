@@ -9,10 +9,11 @@ interface StripeCheckoutFormProps {
   onPaymentMethodReceived: (paymentMethod: PaymentMethod) => void;
   setIsLoading: (isLoading: boolean) => void;
 }
-export default function StripeCheckoutForm({
+
+const StripeCheckoutForm: React.FC<StripeCheckoutFormProps> = ({
   onPaymentMethodReceived,
   setIsLoading,
-}: StripeCheckoutFormProps) {
+}: StripeCheckoutFormProps) => {
   const stripe = useStripe();
   const elements = useElements();
 
@@ -32,6 +33,7 @@ export default function StripeCheckoutForm({
       return;
     }
     // Tokenize the PaymentMethod using the details collected by the Payment Element
+
     const { error, paymentMethod } = await stripe.createPaymentMethod({
       elements,
     });
@@ -57,4 +59,6 @@ export default function StripeCheckoutForm({
       </button>
     </form>
   );
-}
+};
+
+export default StripeCheckoutForm;
