@@ -9,8 +9,7 @@ interface ProductItemProps {
   onOptionChange: (attributeCode: string, valueIndex: string) => void;
   onAddToCart: () => void;
 }
-
-function ProductItem({
+const ProductItem: React.FC<ProductItemProps> = ({
   product,
   quantity,
   selectedOptions,
@@ -18,22 +17,24 @@ function ProductItem({
   onQuantityChange,
   onOptionChange,
   onAddToCart,
-}: ProductItemProps) {
+}: ProductItemProps) => {
   return (
-    <li>
+    <div>
       <img
         src={product.thumbnail.url}
         alt={product.name}
-        style={{ width: "100px", height: "auto" }}
+        className="product-image"
       />
-      {product.name} - {product.price.regularPrice.amount.value}{" "}
-      {product.price.regularPrice.amount.currency}
+      <h3>{product.name}</h3>
+      <p>
+        {product.price.regularPrice.amount.value}{" "}
+        {product.price.regularPrice.amount.currency}
+      </p>
       <input
         type="number"
         min="1"
         value={quantity}
         onChange={(e) => onQuantityChange(e.target.value)}
-        style={{ width: "50px", marginLeft: "10px" }}
       />
       {product.__typename === "ConfigurableProduct" &&
         product.configurable_options && (
@@ -66,8 +67,8 @@ function ProductItem({
         )}
       <button onClick={onAddToCart}>Add to Cart</button>
       {error && <div style={{ color: "red" }}>{error}</div>}
-    </li>
+    </div>
   );
-}
+};
 
 export default ProductItem;
