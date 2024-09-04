@@ -44,44 +44,49 @@ const client = new ApolloClient({
   cache: new InMemoryCache(),
 });
 
+const debounce = (func: Function, delay: number) => {
+  let timeoutId: NodeJS.Timeout;
+  return (...args: any[]) => {
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+};
+
 function App() {
   const [cartId, setCartId] = useState<string | null>(null);
   const [createEmptyCart] = useMutation(CREATE_EMPTY_CART);
   const [addToCart] = useMutation(ADD_TO_CART);
   const [showCheckout, setShowCheckout] = useState(false);
-
-  useEffect(() => {
-    async function initCart() {
-      try {
-        console.log("Initiating cart creation...");
-        const { data } = await createEmptyCart();
-        if (data && data.createEmptyCart) {
-          setCartId(data.createEmptyCart);
-          console.log("Cart created with ID:", data.createEmptyCart);
-        } else {
-          console.error("Failed to create cart: No cart ID received");
-        }
-      } catch (error) {
-        console.error("Error creating cart:", error);
-      }
-    }
-    initCart();
-  }, [createEmptyCart]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>("");
 
   const { refetch: refetchCart } = useQuery(GET_CART_TOTAL, {
     variables: { cartId },
     skip: !cartId,
   });
 
-  const handleAddToCart = async (
-    product: Product,
-    quantity: number,
-    selectedOptions?: Record<string, string>
-  ) => {
-    if (!cartId) {
-      console.error("No cart ID available");
-      return;
+  const handleLinkClick = async () => {
+    localStorage.clear();
+    await initCart();
+    setShowCheckout(false);
+    setSearchQuery("");
+  };
+
+  const initCart = useCallback(async () => {
+    try {
+      console.log("Initiating cart creation...");
+      const { data } = await createEmptyCart();
+      if (data && data.createEmptyCart) {
+        setCartId(data.createEmptyCart);
+        console.log("Cart created with ID:", data.createEmptyCart);
+      } else {
+        console.error("Failed to create cart: No cart ID received");
+      }
+    } catch (error) {
+      console.error("Error creating cart:", error);
     }
+  }, [createEmptyCart]);
 
   const handleUpdateCartId = useCallback((newCartId: string) => {
     setCartId(newCartId);
@@ -165,20 +170,41 @@ function App() {
     }
   };
 
+  const productListProps = useMemo(
+    () => ({
+      onAddToCart: handleAddToCart,
+      searchQuery: debouncedSearchQuery,
+    }),
+    [handleAddToCart, debouncedSearchQuery]
+  );
+
   return (
     <div>
       <h1>
-        <Link to="/" onClick={() => setShowCheckout(false)}>
+        <Link to="/" onClick={handleLinkClick}>
           Magento Store MVP
         </Link>
       </h1>
       {!showCheckout ? (
         <>
-          <ProductList onAddToCart={handleAddToCart} />
-          <Cart cartId={cartId} onCheckout={() => setShowCheckout(true)} />
+          <Suspense fallback={<div>Loading...</div>}>
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+            />
+            <ProductList {...productListProps} />
+            <Cart cartId={cartId} onCheckout={() => setShowCheckout(true)} />
+          </Suspense>
+          {errorMessage && <p className="error-message">{errorMessage}</p>}
         </>
       ) : (
-        cartId && <Checkout cartId={cartId} />
+        cartId && (
+          <Suspense fallback={<div>Loading...</div>}>
+            <Checkout cartId={cartId} onUpdateCartId={handleUpdateCartId} />
+          </Suspense>
+        )
       )}
     </div>
   );
