@@ -10,12 +10,14 @@ import {
   SET_BILLING_ADDRESS,
   SET_PAYMENT_METHOD,
   PLACE_ORDER,
-  // GET_AVAILABLE_PAYMENT_METHODS,
+  GET_AVAILABLE_PAYMENT_METHODS,
   SET_GUEST_EMAIL_ON_CART,
 } from "../graphql/queries";
 
 import StripeCheckoutForm from "./StripeChekoutForm";
 import { Elements } from "@stripe/react-stripe-js";
+import AccountModal from "./AccountModal";
+import AddressForm from "./AddressForm";
 
 const stripePromise = loadStripe(process.env.VITE_STRIPE_PUBLIC_KEY || "");
 
@@ -177,24 +179,13 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
   };
 
   const handleSubmitAddress = async () => {
-    if (
-      !address.firstname ||
-      !address.lastname ||
-      !address.street[0] ||
-      !address.city ||
-      !address.region ||
-      !address.postcode
-    ) {
-      alert("Please fill in all required fields.");
-      return;
-    }
+    setErrorMessage(null);
     try {
       const result = await setBillingAddress({
         variables: {
           cartId,
           address: {
             ...address,
-            // same_as_billing: true, // Set this to true if shipping address is the same as billing address
           },
         },
       });
@@ -204,7 +195,6 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
       );
       setStep(3);
     } catch (error: unknown) {
-      debugger;
       setErrorMessage("Failed to set billing address. Please try again.");
       console.error("Error setting billing address:", error);
     }
@@ -231,76 +221,25 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
         </div>
       )}
       {step === 2 && (
-        <div>
-          <h3>Enter Billing Address</h3>
-          <label>
-            First Name <span className="required">*</span>
-          </label>
-          <input
-            name="firstname"
-            placeholder="First Name"
-            onChange={handleAddressChange}
-            value={address.firstname}
-            required
-          />
-          <label>
-            Last Name <span className="required">*</span>
-          </label>
-          <input
-            name="lastname"
-            placeholder="Last Name"
-            onChange={handleAddressChange}
-            value={address.lastname}
-            required
-          />
-          <label>
-            Street <span className="required">*</span>
-          </label>
-          <input
-            name="street[0]"
-            placeholder="Street"
-            onChange={handleAddressChange}
-            value={address.street[0]}
-            required
-          />
-          <label>
-            City <span className="required">*</span>
-          </label>
-          <input
-            name="city"
-            placeholder="City"
-            onChange={handleAddressChange}
-            value={address.city}
-            required
-          />
-          <label>
-            Sate/Province <span className="required">*</span>
-          </label>
-          <input
-            name="region"
-            placeholder="State/Province"
-            onChange={handleAddressChange}
-            value={address.region}
-          />
-          <label>
-            Post code<span className="required">*</span>
-          </label>
-          <input
-            name="postcode"
-            placeholder="Zip/Postal Code"
-            onChange={handleAddressChange}
-            value={address.postcode}
-          />
-          <input
-            name="telephone"
-            placeholder="Phone Number"
-            onChange={handleAddressChange}
-            value={address.telephone}
-          />
-          <select
-            name="country_code"
-            onChange={handleAddressChange}
-            value={address.country_code}
+        <AddressForm
+          address={address}
+          onAddressChange={handleAddressChange}
+          onSubmitAddress={handleSubmitAddress}
+        />
+      )}
+      {showModal && (
+        <AccountModal
+          onClose={handleCloseModal}
+          onAccountModalSuccess={handleAccountModalSuccess}
+          onUpdateCartId={onUpdateCartId}
+          cartId={cartId}
+          firstname={address.firstname}
+          lastname={address.lastname}
+          email={email}
+        />
+      )}
+
+
           >
             <option value="US">United States</option>
             <option value="CA">Canada</option>
