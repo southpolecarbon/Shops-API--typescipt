@@ -292,7 +292,6 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId, onUpdateCartId }) => {
           email={email}
         />
       )}
-
       {step === 3 && (
         <div className="certificate-section">
           <h3>Certificate Details</h3>
