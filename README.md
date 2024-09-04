@@ -8,28 +8,29 @@ This project is a full-stack application for managing a purchase flow using Mage
 ├── backend/
 │   ├── .env
 │   ├── .env-template
-│   ├── .gitignore
 │   ├── package.json
-│   └── server.js
+│   └── tsconfig.json
+│   └── src/
+│       ├── server.ts
 ├── frontend/
 │   ├── .env
 │   ├── .env-template
-│   ├── .gitignore
 │   ├── eslint.config.js
 │   ├── index.html
 │   ├── package.json
+│   ├── tsconfig.json
+│   ├── vite.config.ts
 │   ├── public/
 │   └── src/
-│       ├── App.css
+│       ├── main.tsx
 │       ├── App.tsx
-│       ├── assets/
+│       ├── App.css
 │       ├── components/
 │       ├── graphql/
-│       ├── index.css
-│       ├── main.tsx
 │       └── types/
-├── README.md
 ├── .gitattributes
+├── .gitignore
+├── README.md
 ```
 
 ## Getting Started
@@ -71,7 +72,7 @@ npm install
 
 ```sh
 cd backend
-npm start
+npm run start
 ```
 
 The server is configured to be listening on PORT 3000. You can modify it via env variables.
