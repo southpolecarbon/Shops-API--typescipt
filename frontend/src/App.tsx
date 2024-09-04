@@ -22,9 +22,16 @@ import { Product } from "./types";
 
 const authLink = new ApolloLink((operation, forward) => {
   const token = localStorage.getItem("authToken");
+  const isGetProductsQuery = operation.operationName === "GetProducts";
+
   operation.setContext({
     headers: {
       authorization: token ? `Bearer ${token}` : "",
+      "Content-Type": "application/json",
+      // NOTE: the required header's name is different for GetProductsQuery vs the rest of queries/mutations
+      ...(isGetProductsQuery
+        ? { "Magento-Store-View-Code": process.env.VITE_STORE_VIEW_CODE }
+        : { Store: process.env.VITE_STORE_VIEW_CODE }),
     },
   });
   return forward(operation);
