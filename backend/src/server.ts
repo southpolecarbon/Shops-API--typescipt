@@ -11,23 +11,29 @@ app.use(helmet());
 app.use(express.json());
 
 app.post("/graphql", async (req: Request, res: Response) => {
-  // try {
+  const isGetProductsQuery = req.body.operationName === "GetProducts";
+
+  //extract the headers set in FE and pass them along to the Magento API
+  const {
+    authorization,
+    store,
+    "magento-store-view-code": magentoStoreViewCode,
+  } = req.headers;
+
+  const headers = {
+    "Content-Type": "application/json",
+    ...(isGetProductsQuery
+      ? { "Magento-Store-View-Code": magentoStoreViewCode }
+      : { Store: store }),
+    ...(authorization && { Authorization: authorization }),
+  };
+
   const response = await axios.post(
     process.env.GQL_API_URL as string,
-    req.body
+    req.body,
+    { headers }
   );
   res.json(response.data);
-  //   } catch (error: unknown) {
-  //     if (error instanceof Error) {
-  //       console.error("Error:", error.message);
-  //       return res.status(400).json(error.message);
-  //     }
-  //
-  //     res.status(500).json({
-  //       error: "An error occurred",
-  //       details: error.response ? error.response.data : error.message,
-  //     });
-  //   }
 });
 
 app.use((err: unknown, req: Request, res: Response) => {

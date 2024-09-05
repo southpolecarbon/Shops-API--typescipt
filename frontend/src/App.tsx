@@ -223,6 +223,11 @@ function App() {
   );
 
   useEffect(() => {
+    // Clear local storage when the component mounts
+    localStorage.clear();
+  }, []);
+
+  useEffect(() => {
     debouncedSetSearchQuery(searchQuery);
   }, [searchQuery, debouncedSetSearchQuery]);
 

@@ -208,6 +208,7 @@ export const ASSIGN_CUSTOMER_TO_GUEST_CART = gql`
     }
   }
 `;
+
 export const SET_CERTIFICATE_NAME = gql`
   mutation SetCertificateName(
     $cartId: String!
