@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useMutation, useQuery } from "@apollo/client";
+import { useMutation, useQuery, ApolloError } from "@apollo/client";
 import {
   loadStripe,
   PaymentMethod,
@@ -143,8 +143,16 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId, onUpdateCartId }) => {
       console.log("Set guest email result:", JSON.stringify(result, null, 2));
       setStep(2);
     } catch (error: unknown) {
-      setErrorMessage("Failed to set guest email. Please try again.");
-      console.error("Error setting guest email:", error);
+      if (error instanceof ApolloError) {
+        const message = error.graphQLErrors[0].message;
+        setErrorMessage(
+          message ||
+            "An error occurred while setting the guest email. Please try again."
+        );
+      } else {
+        setErrorMessage("Failed to set guest email. Please try again.");
+        console.error("Error setting guest email:", error);
+      }
     }
   };
 
