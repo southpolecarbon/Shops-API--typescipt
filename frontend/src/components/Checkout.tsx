@@ -122,7 +122,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId, onUpdateCartId }) => {
   };
 
   const handlePaymentTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    //available values: "stripe_payments" and "purchaseorder"
+    //available values at the moment: "stripe_payments" for handling online payments and "purchaseorder" for handling offline payments
     setSelectedPaymentType(e.target.value);
   };
 
