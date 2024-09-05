@@ -1,5 +1,5 @@
-import React, { /*useEffect,*/ useState } from "react";
-import { useMutation /*useQuery*/ } from "@apollo/client";
+import React, { useState } from "react";
+import { useMutation, useQuery, ApolloError } from "@apollo/client";
 import {
   loadStripe,
   PaymentMethod,
@@ -10,17 +10,21 @@ import {
   SET_BILLING_ADDRESS,
   SET_PAYMENT_METHOD,
   PLACE_ORDER,
-  // GET_AVAILABLE_PAYMENT_METHODS,
+  GET_AVAILABLE_PAYMENT_METHODS,
   SET_GUEST_EMAIL_ON_CART,
+  SET_CERTIFICATE_NAME,
 } from "../graphql/queries";
 
 import StripeCheckoutForm from "./StripeChekoutForm";
 import { Elements } from "@stripe/react-stripe-js";
+import AccountModal from "./AccountModal";
+import AddressForm from "./AddressForm";
 
 const stripePromise = loadStripe(process.env.VITE_STRIPE_PUBLIC_KEY || "");
 
 interface CheckoutProps {
   cartId: string;
+  onUpdateCartId: (newCartId: string) => void;
 }
 interface Address {
   firstname: string;
@@ -33,8 +37,11 @@ interface Address {
   telephone: string;
 }
 
-const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
+const Checkout: React.FC<CheckoutProps> = ({ cartId, onUpdateCartId }) => {
   const [step, setStep] = useState(1);
+
+  const [selectedPaymentType, setSelectedPaymentType] = useState("");
+
   const [address, setAddress] = useState<Address>({
     firstname: "",
     lastname: "",
@@ -46,90 +53,19 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
     telephone: "",
   });
   const [setBillingAddress] = useMutation(SET_BILLING_ADDRESS);
-  const [email, setEmail] = useState("");
   const [setGuestEmailOnCart] = useMutation(SET_GUEST_EMAIL_ON_CART);
   const [setPaymentMethodMutation] = useMutation(SET_PAYMENT_METHOD);
   const [placeOrder] = useMutation(PLACE_ORDER);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [email, setEmail] = useState("f.rashidi@southpole.com");
+  const [certName, setCertName] = useState("");
+  const [certNotes, setCertNotes] = useState("");
+  const [setCertificateName] = useMutation(SET_CERTIFICATE_NAME);
   const [isLoading, setIsLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
-  const handlePlaceOrder = async () => {
-    try {
-      const result = await placeOrder({ variables: { cartId } });
-      console.log(
-        "Order placed:",
-        JSON.stringify(result.data.placeOrder.order, null, 2)
-      );
-      setSuccessMessage("Order placed successfully!");
-    } catch (error: unknown) {
-      debugger;
-      setErrorMessage("Failed to place order. Please try again.");
-      console.error("Error placing order:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handlePaymentMethodReceived = async (paymentMethod: PaymentMethod) => {
-    try {
-      const result = await setPaymentMethodMutation({
-        variables: {
-          cartId,
-          paymentMethod: {
-            code: "stripe_payments",
-            stripe_payments: {
-              payment_method: paymentMethod.id,
-              payment_element: true,
-              save_payment_method: true,
-            },
-          },
-        },
-      });
-      console.log(result);
-      // Call handlePlaceOrder after setting the payment method
-      await handlePlaceOrder();
-      // Handle success (e.g., navigate to confirmation page)
-    } catch (error) {
-      setErrorMessage("Failed to set payment method. Please try again.");
-      console.error(error);
-      setIsLoading(false);
-    }
-  };
-  // const {
-  //   data: paymentMethodsData,
-  //   // loading: paymentMethodsLoading,
-  //   error: paymentMethodsError,
-  // } = useQuery(GET_AVAILABLE_PAYMENT_METHODS, {
-  //   variables: { cartId },
-  //   skip: step < 2,
-  // });
-  //   async function createPaymentIntent(items: { id: string }) {
-  //     try {
-  //       const response = await fetch(
-  //         "http://localhost:3001/create-payment-intent",
-  //         {
-  //           method: "POST",
-  //           headers: { "Content-Type": "application/json" },
-  //           body: JSON.stringify({ items }),
-  //         }
-  //       );
-  //
-  //       if (!response.ok) {
-  //         throw new Error("Network response was not ok");
-  //       }
-  //
-  //       const data = await response.json();
-  //       // Handle the data
-  //       return data;
-  //     } catch (error) {
-  //       debugger;
-  //       // Handle the error
-  //       console.error("There was a problem with the fetch operation:", error);
-  //     }
-  //   }
-
-  const options: StripeElementsOptionsMode = {
+  const paymentOptions: StripeElementsOptionsMode = {
     mode: "payment",
     amount: 100, //If not hard coded the PaymentElemnt is not loaded properly
     currency: "eur", //If not hard coded the PaymentElemnt is not loaded properly
@@ -137,13 +73,64 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
     paymentMethodCreation: "manual",
   };
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
+  const {
+    data: paymentMethodsData,
+    loading: paymentMethodsLoading,
+    error: paymentMethodsError,
+  } = useQuery(GET_AVAILABLE_PAYMENT_METHODS, {
+    variables: { cartId },
+    skip: step < 4,
+  });
+
+  const handleSubmitCertificateForm = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
+    e.preventDefault();
+    try {
+      const result = await setCertificateName({
+        variables: {
+          cartId,
+          certificateName: certName,
+          specialInstructions: certNotes,
+        },
+      });
+      console.log(result);
+      console.log("Certificate details submitted successfully");
+      setShowModal(true);
+    } catch (error) {
+      console.error("Error submitting certificate details:", error);
+    }
   };
 
-  const handleSubmitEmail = async () => {
+  const handleCloseModal = () => {
+    setShowModal(false);
+  };
+
+  const handleAccountModalSuccess = () => {
+    setShowModal(false);
+
+    setStep(4);
+  };
+
+  const handlePaymentStep = async () => {
+    setErrorMessage(null);
+    if (selectedPaymentType === "purchaseorder") {
+      await handlePaymentMethodReceived({ id: "" } as PaymentMethod);
+    } else {
+      setStep(5);
+    }
+  };
+
+  const handlePaymentTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    //available values at the moment: "stripe_payments" for handling online payments and "purchaseorder" for handling offline payments
+    setSelectedPaymentType(e.target.value);
+  };
+
+  const handleSubmitEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
     if (!email) {
-      alert("Please enter your email.");
+      setErrorMessage("Email is required.");
       return;
     }
     try {
@@ -156,8 +143,16 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
       console.log("Set guest email result:", JSON.stringify(result, null, 2));
       setStep(2);
     } catch (error: unknown) {
-      setErrorMessage("Failed to set guest email. Please try again.");
-      console.error("Error setting guest email:", error);
+      if (error instanceof ApolloError) {
+        const message = error.graphQLErrors[0].message;
+        setErrorMessage(
+          message ||
+            "An error occurred while setting the guest email. Please try again."
+        );
+      } else {
+        setErrorMessage("Failed to set guest email. Please try again.");
+        console.error("Error setting guest email:", error);
+      }
     }
   };
 
@@ -177,24 +172,13 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
   };
 
   const handleSubmitAddress = async () => {
-    if (
-      !address.firstname ||
-      !address.lastname ||
-      !address.street[0] ||
-      !address.city ||
-      !address.region ||
-      !address.postcode
-    ) {
-      alert("Please fill in all required fields.");
-      return;
-    }
+    setErrorMessage(null);
     try {
       const result = await setBillingAddress({
         variables: {
           cartId,
           address: {
             ...address,
-            // same_as_billing: true, // Set this to true if shipping address is the same as billing address
           },
         },
       });
@@ -204,139 +188,141 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
       );
       setStep(3);
     } catch (error: unknown) {
-      debugger;
       setErrorMessage("Failed to set billing address. Please try again.");
       console.error("Error setting billing address:", error);
+    }
+  };
+
+  const handlePlaceOrder = async () => {
+    setErrorMessage(null);
+    try {
+      // Ref: https://developer.adobe.com/commerce/webapi/graphql/schema/cart/mutations/place-order/
+      const result = await placeOrder({ variables: { cartId } });
+      console.log(
+        "Order placed:",
+        JSON.stringify(result.data.placeOrder.order, null, 2)
+      );
+      setIsLoading(false);
+      setSuccessMessage("Order placed successfully!");
+    } catch (error: unknown) {
+      setErrorMessage("Failed to place order. Please try again.");
+      console.error("Error placing order:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePaymentMethodReceived = async (paymentMethod: PaymentMethod) => {
+    setErrorMessage(null);
+    setStep(6);
+    setIsLoading(true);
+    try {
+      let paymentMethodVariables;
+
+      if (selectedPaymentType === "stripe_payments") {
+        paymentMethodVariables = {
+          code: "stripe_payments",
+          stripe_payments: {
+            payment_method: paymentMethod.id,
+            payment_element: true,
+            save_payment_method: true,
+          },
+        };
+      } else if (selectedPaymentType === "purchaseorder") {
+        paymentMethodVariables = {
+          code: selectedPaymentType,
+        };
+      } else {
+        setErrorMessage("Invalid payment method selected. Please try again.");
+        setIsLoading(false);
+        return;
+      }
+
+      // Ref: https://developer.adobe.com/commerce/webapi/graphql/schema/cart/mutations/set-payment-method/
+      await setPaymentMethodMutation({
+        variables: {
+          cartId,
+          paymentMethod: paymentMethodVariables,
+        },
+      });
+
+      // Call handlePlaceOrder after setting the payment method
+      await handlePlaceOrder();
+    } catch (error) {
+      setErrorMessage("Failed to set payment method. Please try again.");
+      console.error(error);
+      setIsLoading(false);
     }
   };
 
   return (
     <div>
       {errorMessage && <div className="error-message">{errorMessage}</div>}
-      {successMessage && (
-        <div className="success-message">{successMessage}</div>
-      )}
-
       {step === 1 && (
         <div>
           <h2>Checkout</h2>
           <h3>Enter Your Email</h3>
-          <input
-            type="email"
-            value={email}
-            onChange={handleEmailChange}
-            placeholder="Email"
-          />
-          <button onClick={handleSubmitEmail}>Next</button>
+          <form onSubmit={handleSubmitEmail}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              required
+            />
+            <button onClick={handleSubmitEmail}>Next</button>
+          </form>
         </div>
       )}
       {step === 2 && (
-        <div>
-          <h3>Enter Billing Address</h3>
-          <label>
-            First Name <span className="required">*</span>
-          </label>
-          <input
-            name="firstname"
-            placeholder="First Name"
-            onChange={handleAddressChange}
-            value={address.firstname}
-            required
-          />
-          <label>
-            Last Name <span className="required">*</span>
-          </label>
-          <input
-            name="lastname"
-            placeholder="Last Name"
-            onChange={handleAddressChange}
-            value={address.lastname}
-            required
-          />
-          <label>
-            Street <span className="required">*</span>
-          </label>
-          <input
-            name="street[0]"
-            placeholder="Street"
-            onChange={handleAddressChange}
-            value={address.street[0]}
-            required
-          />
-          <label>
-            City <span className="required">*</span>
-          </label>
-          <input
-            name="city"
-            placeholder="City"
-            onChange={handleAddressChange}
-            value={address.city}
-            required
-          />
-          <label>
-            Sate/Province <span className="required">*</span>
-          </label>
-          <input
-            name="region"
-            placeholder="State/Province"
-            onChange={handleAddressChange}
-            value={address.region}
-          />
-          <label>
-            Post code<span className="required">*</span>
-          </label>
-          <input
-            name="postcode"
-            placeholder="Zip/Postal Code"
-            onChange={handleAddressChange}
-            value={address.postcode}
-          />
-          <input
-            name="telephone"
-            placeholder="Phone Number"
-            onChange={handleAddressChange}
-            value={address.telephone}
-          />
-          <select
-            name="country_code"
-            onChange={handleAddressChange}
-            value={address.country_code}
+        <AddressForm
+          address={address}
+          onAddressChange={handleAddressChange}
+          onSubmitAddress={handleSubmitAddress}
+        />
+      )}
+      {showModal && (
+        <AccountModal
+          onClose={handleCloseModal}
+          onAccountModalSuccess={handleAccountModalSuccess}
+          onUpdateCartId={onUpdateCartId}
+          cartId={cartId}
+          firstname={address.firstname}
+          lastname={address.lastname}
+          email={email}
+        />
+      )}
+
+      {step === 3 && (
+        <div className="certificate-section">
+          <h3>Certificate Details</h3>
+          <form
+            className="certificate-form"
+            onSubmit={handleSubmitCertificateForm}
           >
-            <option value="US">United States</option>
-            <option value="CA">Canada</option>
-            <option value="GB">United Kingdom</option>
-            {/* Add more country options as needed */}
-          </select>
-          <button onClick={handleSubmitAddress}>Next</button>
+            <label>
+              Name:
+              <input
+                type="text"
+                value={certName}
+                onChange={(e) => setCertName(e.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Notes:
+              <textarea
+                value={certNotes}
+                onChange={(e) => setCertNotes(e.target.value)}
+                required
+              />
+            </label>
+            <button type="submit">Submit</button>
+          </form>
+          <img src="/certificate-explainer.png" alt="Certificate Explainer" />
         </div>
       )}
-      <div>
-        {step === 3 && (
-          <div className="checkout">
-            {isLoading ? (
-              <div>Loading...</div>
-            ) : (
-              !successMessage && (
-                <div>
-                  <h3>Complete your purchase</h3>
-                  {/* Stripe recommend using an Stripe Element (https://docs.stripe.com/stripe-js/react) to render a payment form.*/}
-                  <Elements options={options} stripe={stripePromise}>
-                    <StripeCheckoutForm
-                      onPaymentMethodReceived={handlePaymentMethodReceived}
-                      setIsLoading={setIsLoading}
-                    />
-                    {isLoading && <div>Loading...</div>}
-                  </Elements>
-                </div>
-              )
-            )}
-          </div>
-        )}
-        {/* {orderPlaced && (
-          <div>Payment successful! Your order has been placed.</div>
-        )} */}
-      </div>
-      {/* {step === 4 && (
+      {step === 4 && (
         <div>
           <h3>Payment Method</h3>
           {paymentMethodsLoading && <p>Loading payment methods...</p>}
@@ -344,32 +330,55 @@ const Checkout: React.FC<CheckoutProps> = ({ cartId }) => {
             <p>Error loading payment methods: {paymentMethodsError.message}</p>
           )}
           {paymentMethodsData && (
-            <select
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              value={paymentMethod}
-            >
-              <option value="">Select Payment Method</option>
+            <div>
+              <select onChange={handlePaymentTypeChange}>
+                <option value="">Select Payment Method</option>
 
-              {paymentMethodsData.cart.available_payment_methods.map(
-                (method: { code: string; title: string }) => (
-                  <option key={method.code} value={method.code}>
-                    {method.title}
-                  </option>
-                )
-              )}
-            </select>
+                {paymentMethodsData.cart.available_payment_methods.map(
+                  (method: { code: string; title: string }) => (
+                    <option key={method.code} value={method.code}>
+                      {method.title}
+                    </option>
+                  )
+                )}
+              </select>
+              <button onClick={handlePaymentStep}>Next</button>
+            </div>
           )}
-          <div id="payment-element"></div>
-          <button onClick={handleSetPaymentMethod}>Next</button>
-        </div>
-      )} */}
-      {/* {step === 5 && (
-        <div>
-          <h3>Place Order</h3>
-          <button onClick={handlePlaceOrder}>Place Order</button>
         </div>
       )}
-      {step === 5 && <div>Order placed successfully!</div>} */}
+      {step === 5 && selectedPaymentType === "stripe_payments" && (
+        <div className="checkout">
+          {isLoading ? (
+            <div>Loading...</div>
+          ) : (
+            !successMessage && (
+              <div>
+                <h3>Complete your purchase</h3>
+                {/* Stripe recommend using an Stripe Element (https://docs.stripe.com/stripe-js/react) to render a payment form.*/}
+                <Elements options={paymentOptions} stripe={stripePromise}>
+                  <StripeCheckoutForm
+                    onPaymentMethodReceived={handlePaymentMethodReceived}
+                    setIsLoading={setIsLoading}
+                  />
+                  {isLoading && <div>Loading...</div>}
+                </Elements>
+              </div>
+            )
+          )}
+        </div>
+      )}
+      {step === 6 && (
+        <div>
+          {isLoading ? (
+            <div>Loading...</div>
+          ) : (
+            successMessage && (
+              <div>Your order has been placed successfully!</div>
+            )
+          )}
+        </div>
+      )}
     </div>
   );
 };
