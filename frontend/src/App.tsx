@@ -16,6 +16,7 @@ import {
   useQuery,
   HttpLink,
   ApolloLink,
+  ApolloError,
 } from "@apollo/client";
 import {
   CREATE_EMPTY_CART,
@@ -148,6 +149,7 @@ function App() {
             );
             sku = variant.product.sku;
             parentSku = product.sku;
+
             selectedOptionIds = Object.entries(selectedOptions).map(
               ([code, value_index]) => {
                 const option = product.configurable_options?.find(
@@ -187,14 +189,12 @@ function App() {
             2
           )
         );
-
         const result = await addToCart({
           variables: {
-            cartId,
-            sku,
-            quantity,
-            parentSku,
-            selectedOptions: selectedOptionIds,
+            input: {
+              cart_id: cartId,
+              cart_items: [{ parent_sku: parentSku, data: { quantity, sku } }],
+            },
           },
         });
 
@@ -210,8 +210,16 @@ function App() {
           refetchCart();
         }
       } catch (error: unknown) {
-        console.error("Error adding to cart:", error);
-        setErrorMessage("An unexpected error occurred. Please try again.");
+        if (error instanceof ApolloError) {
+          const message = error.graphQLErrors[0].message;
+          setErrorMessage(
+            message ||
+              "An error occurred while adding item to the cart. Please try again."
+          );
+        } else {
+          console.error("Error adding to cart:", error);
+          setErrorMessage("An unexpected error occurred. Please try again.");
+        }
       }
     },
     [addToCart, cartId, refetchCart]

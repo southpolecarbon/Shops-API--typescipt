@@ -2,39 +2,38 @@ import { gql } from "@apollo/client";
 
 export const GET_PRODUCTS = gql`
   query GetProducts($search: String!) {
-    products(search: $search, pageSize: 10, currentPage: 1) {
+    products(search: $search, pageSize: 20, currentPage: 1) {
       items {
         id
         name
         sku
-        thumbnail {
-          url
-          label
-        }
         __typename
-        price {
-          regularPrice {
-            amount {
-              value
-              currency
-            }
-          }
-        }
         ... on ConfigurableProduct {
           configurable_options {
             attribute_code
+            id
             label
+            use_default
             values {
               value_index
               label
+              swatch_data {
+                value
+              }
             }
+            product_id
           }
           variants {
             product {
+              id
+              name
               sku
-              price {
-                regularPrice {
-                  amount {
+              ... on PhysicalProductInterface {
+                weight
+              }
+              price_range {
+                minimum_price {
+                  regular_price {
                     value
                     currency
                   }
@@ -42,8 +41,21 @@ export const GET_PRODUCTS = gql`
               }
             }
             attributes {
+              label
               code
               value_index
+            }
+          }
+        }
+        thumbnail {
+          url
+          label
+        }
+        price {
+          regularPrice {
+            amount {
+              value
+              currency
             }
           }
         }
@@ -59,24 +71,10 @@ export const CREATE_EMPTY_CART = gql`
 `;
 
 export const ADD_TO_CART = gql`
-  mutation AddToCart(
-    $cartId: String!
-    $sku: String!
-    $quantity: Float!
-    $parentSku: String
-    $selectedOptions: [ID!]
+  mutation AddConfigurableProductsToCart(
+    $input: AddConfigurableProductsToCartInput
   ) {
-    addProductsToCart(
-      cartId: $cartId
-      cartItems: [
-        {
-          sku: $sku
-          quantity: $quantity
-          parent_sku: $parentSku
-          selected_options: $selectedOptions
-        }
-      ]
-    ) {
+    addConfigurableProductsToCart(input: $input) {
       cart {
         items {
           product {
@@ -84,11 +82,15 @@ export const ADD_TO_CART = gql`
             sku
           }
           quantity
+          ... on ConfigurableCartItem {
+            configurable_options {
+              id
+              option_label
+              value_label
+              value_id
+            }
+          }
         }
-      }
-      user_errors {
-        code
-        message
       }
     }
   }
