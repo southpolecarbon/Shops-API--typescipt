@@ -74,7 +74,9 @@ const ProductList: React.FC<ProductListProps> = ({
 
   const products = useMemo(() => {
     if (Array.isArray(data?.products?.items)) {
-      return data.products.items;
+      return data.products.items.filter(
+        (product: Product) => product.__typename === "ConfigurableProduct"
+      );
     }
     return [];
   }, [data]);

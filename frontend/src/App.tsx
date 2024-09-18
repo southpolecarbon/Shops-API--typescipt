@@ -189,14 +189,12 @@ function App() {
             2
           )
         );
-
         const result = await addToCart({
           variables: {
-            cartId,
-            sku,
-            quantity,
-            parentSku,
-            selectedOptions: selectedOptionIds,
+            input: {
+              cart_id: cartId,
+              cart_items: [{ parent_sku: parentSku, data: { quantity, sku } }],
+            },
           },
         });
 
