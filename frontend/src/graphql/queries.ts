@@ -2,7 +2,12 @@ import { gql } from "@apollo/client";
 
 export const GET_PRODUCTS = gql`
   query GetProducts($search: String!) {
-    products(search: $search, pageSize: 20, currentPage: 1) {
+    products(
+      search: $search
+      pageSize: 20
+      currentPage: 1
+      sort: { name: DESC }
+    ) {
       items {
         id
         name
